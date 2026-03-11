@@ -148,6 +148,27 @@
                     }
                 }
 
+                // Build transport object; no_grpc_header добавляется только для stream-up и stream-one
+                const transport = {
+                    "type": type,
+                    "path": path,
+                    "host": host,
+                    "mode": mode,
+                    "x_padding_bytes": xPaddingBytes
+                };
+
+                if (mode === 'stream-up' || mode === 'stream-one') {
+                    transport["no_grpc_header"] = false;
+                }
+
+                transport["xmux"] = {
+                    "maxConnections": maxConnections,
+                    "cMaxReuseTimes": cMaxReuseTimes,
+                    "hMaxRequestTimes": hMaxRequestTimes,
+                    "hMaxReusableSecs": hMaxReusableSecs,
+                    "hKeepAlivePeriod": hKeepAlivePeriod
+                };
+
                 const config = {
                     "type": "vless",
                     "tag": tag,
@@ -156,20 +177,7 @@
                     "uuid": uuid,
                     "flow": "",
                     "tls": tlsSettings,
-                    "transport": {
-                        "type": type,
-                        "path": path,
-                        "host": host,
-                        "mode": mode,
-                        "x_padding_bytes": xPaddingBytes,
-                        "xmux": {
-                            "maxConnections": maxConnections,
-                            "cMaxReuseTimes": cMaxReuseTimes,
-                            "hMaxRequestTimes": hMaxRequestTimes,
-                            "hMaxReusableSecs": hMaxReusableSecs,
-                            "hKeepAlivePeriod": hKeepAlivePeriod
-                        }
-                    }
+                    "transport": transport
                 };
 
                 outputElement.innerHTML = syntaxHighlight(config);
