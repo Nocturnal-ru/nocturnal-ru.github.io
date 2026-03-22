@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>VLESS XHTTP + Reality/TLS Converter - sing-box-extended 1.6+</title>
+    <title>VLESS XHTTP + Reality/TLS Converter - sing-box-extended 1.6.2</title>
     <style>
         body { background-color: #2b2b2b; color: #d4d4d4; font-family: system-ui, -apple-system, sans-serif; display: flex; justify-content: center; align-items: flex-start; min-height: 100vh; margin: 0; padding: 30px 0; box-sizing: border-box; }
         .container { width: 90%; max-width: 900px; background-color: #2b2b2b; padding: 25px; box-sizing: border-box; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
@@ -30,35 +30,40 @@
 <body>
 
     <div class="container">
-        <h2>VLESS XHTTP + Reality/TLS Converter - sing-box-extended 1.6+</h2>
+        <h2>VLESS XHTTP + Reality/TLS Converter - sing-box-extended 1.6.2</h2>
         <textarea id="urlInput" placeholder="Вставьте вашу ссылку vless://..."></textarea>
 
         <div class="xmux-panel">
-            <h3>Параметры xmux / x_padding (sing-box-extended 1.6+)</h3>
+            <h3>Параметры xmux / x_padding (sing-box-extended 1.6.2)</h3>
             <div class="xmux-grid">
                 <div class="xmux-field">
                     <label>x_padding_bytes</label>
                     <input id="xPaddingBytes" value="100-1000">
                 </div>
-                <div class="xmux-field">
-                    <label>maxConnections</label>
-                    <input id="maxConnections" value="2">
+                <div class="xmux-field" style="grid-column: 1 / -1;">
+                    <div style="display:flex;gap:16px;margin-bottom:6px;">
+                        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.78em;color:#d4d4d4;margin:0;font-family:monospace;">
+                            <input type="radio" name="xmuxMode" value="max_connections" checked onchange="switchXmuxMode(this.value)" style="width:auto;border:none;background:none;padding:0;">
+                            max_connections
+                        </label>
+                        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:0.78em;color:#d4d4d4;margin:0;font-family:monospace;">
+                            <input type="radio" name="xmuxMode" value="max_concurrency" onchange="switchXmuxMode(this.value)" style="width:auto;border:none;background:none;padding:0;">
+                            max_concurrency
+                        </label>
+                    </div>
+                    <input id="xmuxModeValue" type="number" value="3">
                 </div>
                 <div class="xmux-field">
-                    <label>cMaxReuseTimes</label>
-                    <input id="cMaxReuseTimes" value="128">
+                    <label>c_max_reuse_times (число)</label>
+                    <input id="c_max_reuse_times" type="number" value="0">
                 </div>
                 <div class="xmux-field">
-                    <label>hMaxRequestTimes</label>
-                    <input id="hMaxRequestTimes" value="600-900">
+                    <label>h_max_request_times</label>
+                    <input id="h_max_request_times" value="600-900">
                 </div>
                 <div class="xmux-field">
-                    <label>hMaxReusableSecs</label>
-                    <input id="hMaxReusableSecs" value="1800-3600">
-                </div>
-                <div class="xmux-field">
-                    <label>hKeepAlivePeriod (число)</label>
-                    <input id="hKeepAlivePeriod" type="number" value="120">
+                    <label>h_max_reusable_secs</label>
+                    <input id="h_max_reusable_secs" value="1800-3000">
                 </div>
             </div>
         </div>
@@ -104,26 +109,27 @@
                 const sid = params.get('sid') || '';
                 const fp = params.get('fp') || 'chrome';
 
-                let alpnArray = [];
+                let alpnValue;
                 const alpnRaw = params.get('alpn');
                 if (alpnRaw) {
-                    alpnArray = decodeURIComponent(alpnRaw).split(',');
+                    const alpnParsed = decodeURIComponent(alpnRaw).split(',');
+                    alpnValue = alpnParsed.length === 1 ? alpnParsed[0] : alpnParsed;
                 } else {
-                    if (type === 'xhttp') alpnArray = ["h2", "http/1.1"];
+                    alpnValue = type === 'xhttp' ? "h2" : [];
                 }
 
                 // Read xmux / x_padding values from the panel
                 const xPaddingBytes = document.getElementById('xPaddingBytes').value.trim();
-                const maxConnections = document.getElementById('maxConnections').value.trim();
-                const cMaxReuseTimes = document.getElementById('cMaxReuseTimes').value.trim();
-                const hMaxRequestTimes = document.getElementById('hMaxRequestTimes').value.trim();
-                const hMaxReusableSecs = document.getElementById('hMaxReusableSecs').value.trim();
-                const hKeepAlivePeriod = parseInt(document.getElementById('hKeepAlivePeriod').value, 10);
+                const xmuxMode = document.querySelector('input[name="xmuxMode"]:checked').value;
+                const xmuxModeValue = document.getElementById('xmuxModeValue').value.trim();
+                const cMaxReuseTimes = parseInt(document.getElementById('c_max_reuse_times').value, 10);
+                const hMaxRequestTimes = document.getElementById('h_max_request_times').value.trim();
+                const hMaxReusableSecs = document.getElementById('h_max_reusable_secs').value.trim();
 
                 const tlsSettings = {
                     "enabled": true,
                     "server_name": sni,
-                    "alpn": alpnArray
+                    "alpn": alpnValue
                 };
 
                 if (isReality) {
@@ -161,13 +167,16 @@
                     transport["no_grpc_header"] = false;
                 }
 
-                transport["xmux"] = {
-                    "maxConnections": maxConnections,
-                    "cMaxReuseTimes": cMaxReuseTimes,
-                    "hMaxRequestTimes": hMaxRequestTimes,
-                    "hMaxReusableSecs": hMaxReusableSecs,
-                    "hKeepAlivePeriod": hKeepAlivePeriod
-                };
+                const xmux = {};
+                if (xmuxMode === 'max_connections') {
+                    xmux["max_connections"] = parseInt(xmuxModeValue, 10);
+                } else {
+                    xmux["max_concurrency"] = xmuxModeValue;
+                }
+                xmux["c_max_reuse_times"] = cMaxReuseTimes;
+                xmux["h_max_request_times"] = hMaxRequestTimes;
+                xmux["h_max_reusable_secs"] = hMaxReusableSecs;
+                transport["xmux"] = xmux;
 
                 const config = {
                     "type": "vless",
@@ -184,6 +193,17 @@
 
             } catch (e) {
                 outputElement.innerHTML = '<span style="color: #ff6b6b;">Ошибка парсинга: ' + e.message + '</span>';
+            }
+        }
+
+        function switchXmuxMode(mode) {
+            const input = document.getElementById('xmuxModeValue');
+            if (mode === 'max_connections') {
+                input.type = 'number';
+                input.value = '3';
+            } else {
+                input.type = 'text';
+                input.value = '16-32';
             }
         }
 
